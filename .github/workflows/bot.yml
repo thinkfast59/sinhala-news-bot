@@ -1,19 +1,18 @@
-name: Sinhala News Bot
+name: Sinhala Telegram News Bot
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: "0 */4 * * *"
+    - cron: "0 * * * *"
 
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
-  run-bot:
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
-      - name: Checkout Repo
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -21,27 +20,37 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install FFmpeg and Sinhala Fonts
+      - name: Install FFmpeg + Fonts
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg fonts-noto-core fonts-noto-extra
+
+          sudo apt-get install -y \
+            ffmpeg \
+            fonts-noto-core \
+            fonts-noto-extra \
+            fonts-noto-ui-core
+
           fc-cache -fv
 
-      - name: Install Dependencies
+      - name: Install Python Packages
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+
+          pip install requests
+          pip install beautifulsoup4
+          pip install feedparser
+          pip install pillow
+          pip install moviepy==1.0.3
+          pip install imageio
+          pip install imageio-ffmpeg
+          pip install numpy
+          pip install deep-translator
+          pip install edge-tts
 
       - name: Run Bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python main.py
 
-      - name: Save posted history
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add posted.json || true
-          git commit -m "Update posted news history" || echo "No changes"
-          git push || true
+          python main.py
