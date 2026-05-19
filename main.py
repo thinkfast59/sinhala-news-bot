@@ -6,20 +6,30 @@ import random
 import hashlib
 import subprocess
 from io import BytesIO
-from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
+from datetime import datetime
 
 import requests
 import feedparser
+
 from bs4 import BeautifulSoup
 from deep_translator import GoogleTranslator
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from moviepy.editor import ImageClip, AudioFileClip
+
+from PIL import (
+    Image,
+    ImageDraw,
+    ImageFont,
+    ImageFilter
+)
+
+from moviepy.editor import (
+    ImageClip,
+    AudioFileClip
+)
 
 
-# =========================================
+# =====================================
 # SETTINGS
-# =========================================
+# =====================================
 
 PAGE_NAME = "ලෝක පුවත්"
 
@@ -27,23 +37,36 @@ OUTPUT_DIR = "output"
 ASSET_DIR = "assets"
 STATE_DIR = "state"
 
-USED_FILE = os.path.join(STATE_DIR, "used.json")
+USED_FILE = os.path.join(
+    STATE_DIR,
+    "used.json"
+)
 
 VIDEO_WIDTH = 1080
 VIDEO_HEIGHT = 1920
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
-
-RUN_FOREVER = True
+RUN_FOREVER = False
 RUN_EVERY_MINUTES = 60
 
-translator = GoogleTranslator(source='auto', target='si')
+TELEGRAM_BOT_TOKEN = os.getenv(
+    "TELEGRAM_BOT_TOKEN",
+    ""
+)
+
+TELEGRAM_CHAT_ID = os.getenv(
+    "TELEGRAM_CHAT_ID",
+    ""
+)
+
+translator = GoogleTranslator(
+    source="auto",
+    target="si"
+)
 
 
-# =========================================
+# =====================================
 # RSS FEEDS
-# =========================================
+# =====================================
 
 RSS_FEEDS = [
 
@@ -55,38 +78,69 @@ RSS_FEEDS = [
     "https://feeds.bbci.co.uk/news/world/rss.xml",
     "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
     "https://feeds.skynews.com/feeds/rss/world.xml",
-    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://www.aljazeera.com/xml/rss/all.xml"
 ]
 
 
-# =========================================
+# =====================================
 # HELPERS
-# =========================================
+# =====================================
 
 def clean_text(text):
-    text = BeautifulSoup(text or "", "html.parser").get_text(" ")
-    text = re.sub(r"\s+", " ", text).strip()
+
+    text = BeautifulSoup(
+        text or "",
+        "html.parser"
+    ).get_text(" ")
+
+    text = re.sub(
+        r"\s+",
+        " ",
+        text
+    ).strip()
+
     return text
 
 
 def shorten(text, max_chars):
+
     text = clean_text(text)
 
     if len(text) <= max_chars:
         return text
 
-    return text[:max_chars].rsplit(" ", 1)[0] + "..."
+    return (
+        text[:max_chars]
+        .rsplit(" ", 1)[0]
+        + "..."
+    )
 
 
 def safe_filename(text):
-    return re.sub(r"[^a-zA-Z0-9_-]+", "_", text)[:80]
+
+    text = re.sub(
+        r"[^a-zA-Z0-9_-]+",
+        "_",
+        text
+    )
+
+    return text[:80]
 
 
 def load_used():
+
     if os.path.exists(USED_FILE):
+
         try:
-            with open(USED_FILE, "r", encoding="utf-8") as f:
+
+            with open(
+                USED_FILE,
+                "r",
+                encoding="utf-8"
+            ) as f:
+
                 return json.load(f)
+
         except:
             return []
 
@@ -94,57 +148,85 @@ def load_used():
 
 
 def save_used(data):
-    os.makedirs(STATE_DIR, exist_ok=True)
 
-    with open(USED_FILE, "w", encoding="utf-8") as f:
-        json.dump(data[-2000:], f, ensure_ascii=False, indent=2)
+    os.makedirs(
+        STATE_DIR,
+        exist_ok=True
+    )
+
+    with open(
+        USED_FILE,
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            data[-2000:],
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
 
 
-# =========================================
+# =====================================
 # TRANSLATION
-# =========================================
+# =====================================
 
 def translate_to_sinhala(text):
 
     try:
+
         translated = translator.translate(text)
 
-        translated = translated.replace("ශ්\u200dරී", "ශ්‍රී")
+        translated = translated.replace(
+            "ශ්\u200dරී",
+            "ශ්‍රී"
+        )
 
         return translated
 
     except Exception as e:
-        print("Translation error:", e)
+
+        print("Translate error:", e)
+
         return text
 
 
-# =========================================
+# =====================================
 # FONT
-# =========================================
+# =====================================
 
 def get_font(size, bold=False):
 
     fonts = [
 
         "/usr/share/fonts/truetype/noto/NotoSansSinhala-Bold.ttf",
+
         "/usr/share/fonts/truetype/noto/NotoSansSinhala-Regular.ttf",
 
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
     ]
 
     for path in fonts:
+
         try:
-            return ImageFont.truetype(path, size)
+
+            return ImageFont.truetype(
+                path,
+                size
+            )
+
         except:
             pass
 
     return ImageFont.load_default()
 
 
-# =========================================
+# =====================================
 # IMAGE
-# =========================================
+# =====================================
 
 def cover_resize(img, size):
 
@@ -160,10 +242,18 @@ def cover_resize(img, size):
         int(img.height * scale)
     )
 
-    img = img.resize(new_size)
+    img = img.resize(
+        new_size,
+        Image.LANCZOS
+    )
 
-    left = (img.width - target_w) // 2
-    top = (img.height - target_h) // 2
+    left = (
+        img.width - target_w
+    ) // 2
+
+    top = (
+        img.height - target_h
+    ) // 2
 
     return img.crop((
         left,
@@ -175,14 +265,22 @@ def cover_resize(img, size):
 
 def download_image(url, output_path):
 
+    if not url:
+        return False
+
     try:
 
-        r = requests.get(url, timeout=20)
+        r = requests.get(
+            url,
+            timeout=20
+        )
 
         if r.status_code != 200:
             return False
 
-        img = Image.open(BytesIO(r.content)).convert("RGB")
+        img = Image.open(
+            BytesIO(r.content)
+        ).convert("RGB")
 
         img.save(output_path)
 
@@ -191,18 +289,20 @@ def download_image(url, output_path):
     except Exception as e:
 
         print("Image error:", e)
+
         return False
 
 
-# =========================================
+# =====================================
 # NEWS
-# =========================================
+# =====================================
 
 def get_news():
 
     used = set(load_used())
 
     feeds = RSS_FEEDS[:]
+
     random.shuffle(feeds)
 
     for feed_url in feeds:
@@ -217,19 +317,27 @@ def get_news():
 
             for entry in entries:
 
-                title = clean_text(entry.get("title", ""))
+                title = clean_text(
+                    entry.get("title", "")
+                )
 
                 summary = clean_text(
-                    entry.get("summary", "") or
+                    entry.get("summary", "")
+                    or
                     entry.get("description", "")
                 )
 
-                link = entry.get("link", "")
+                link = entry.get(
+                    "link",
+                    ""
+                )
 
                 if not title:
                     continue
 
-                news_id = hashlib.md5(link.encode()).hexdigest()
+                news_id = hashlib.md5(
+                    link.encode()
+                ).hexdigest()
 
                 if news_id in used:
                     continue
@@ -237,8 +345,12 @@ def get_news():
                 image_url = None
 
                 if "media_content" in entry:
+
                     media = entry.media_content[0]
-                    image_url = media.get("url")
+
+                    image_url = media.get(
+                        "url"
+                    )
 
                 return {
                     "id": news_id,
@@ -255,9 +367,9 @@ def get_news():
     return None
 
 
-# =========================================
-# SINHALA SCRIPT
-# =========================================
+# =====================================
+# SCRIPT
+# =====================================
 
 def make_script(news):
 
@@ -279,120 +391,62 @@ def make_script(news):
     return script
 
 
-# =========================================
+# =====================================
 # SINHALA TTS
-# =========================================
+# =====================================
 
 def create_voice(script, output_path):
 
-    temp_txt = "tts.txt"
-
-    with open(temp_txt, "w", encoding="utf-8") as f:
-        f.write(script)
-
     command = [
+
         "edge-tts",
+
         "--voice",
         "si-LK-SameeraNeural",
-        "--file",
+
+        "--write-media",
         output_path,
+
         "--text",
         script
     ]
 
-    subprocess.run(command)
-
-
-# =========================================
-# VIDEO IMAGE
-# =========================================
-
-def create_news_image(news, image_path):
-
-    if os.path.exists(image_path):
-
-        img = Image.open(image_path).convert("RGB")
-
-    else:
-
-        img = Image.new(
-            "RGB",
-            (VIDEO_WIDTH, VIDEO_HEIGHT),
-            (15, 20, 35)
-        )
-
-    img = cover_resize(
-        img,
-        (VIDEO_WIDTH, VIDEO_HEIGHT)
+    subprocess.run(
+        command,
+        check=True
     )
 
-    overlay = Image.new(
-        "RGBA",
-        img.size,
-        (0, 0, 0, 110)
-    )
 
-    img = Image.alpha_composite(
-        img.convert("RGBA"),
-        overlay
-    ).convert("RGB")
+# =====================================
+# TEXT WRAP
+# =====================================
 
-    draw = ImageDraw.Draw(img)
-
-    title = translate_to_sinhala(
-        shorten(news["title"], 120)
-    )
-
-    font = get_font(55, True)
-
-    wrapped = text_wrap(
-        title,
-        font,
-        900
-    )
-
-    y = 1200
-
-    for line in wrapped:
-
-        draw.text(
-            (80, y),
-            line,
-            font=font,
-            fill="white"
-        )
-
-        y += 80
-
-    logo_font = get_font(60, True)
-
-    draw.text(
-        (70, 80),
-        PAGE_NAME,
-        font=logo_font,
-        fill=(255, 60, 60)
-    )
-
-    out_path = "frame.jpg"
-
-    img.save(out_path)
-
-    return out_path
-
-
-def text_wrap(text, font, max_width):
+def text_wrap(
+    text,
+    font,
+    max_width
+):
 
     lines = []
+
     words = text.split()
 
     current = ""
 
-    dummy = Image.new("RGB", (10, 10))
+    dummy = Image.new(
+        "RGB",
+        (10, 10)
+    )
+
     draw = ImageDraw.Draw(dummy)
 
     for word in words:
 
-        test = current + " " + word
+        test = (
+            current
+            + " "
+            + word
+        ).strip()
 
         width = draw.textbbox(
             (0, 0),
@@ -406,22 +460,124 @@ def text_wrap(text, font, max_width):
 
         else:
 
-            lines.append(current.strip())
+            if current:
+                lines.append(current)
+
             current = word
 
     if current:
-        lines.append(current.strip())
+        lines.append(current)
 
     return lines
 
 
-# =========================================
+# =====================================
+# NEWS IMAGE
+# =====================================
+
+def create_news_image(
+    news,
+    image_path
+):
+
+    if os.path.exists(image_path):
+
+        img = Image.open(
+            image_path
+        ).convert("RGB")
+
+    else:
+
+        img = Image.new(
+            "RGB",
+            (
+                VIDEO_WIDTH,
+                VIDEO_HEIGHT
+            ),
+            (10, 15, 25)
+        )
+
+    img = cover_resize(
+        img,
+        (
+            VIDEO_WIDTH,
+            VIDEO_HEIGHT
+        )
+    )
+
+    overlay = Image.new(
+        "RGBA",
+        img.size,
+        (0, 0, 0, 120)
+    )
+
+    img = Image.alpha_composite(
+        img.convert("RGBA"),
+        overlay
+    ).convert("RGB")
+
+    draw = ImageDraw.Draw(img)
+
+    title = translate_to_sinhala(
+        shorten(news["title"], 120)
+    )
+
+    title_font = get_font(
+        60,
+        True
+    )
+
+    lines = text_wrap(
+        title,
+        title_font,
+        900
+    )
+
+    y = 1180
+
+    for line in lines:
+
+        draw.text(
+            (80, y),
+            line,
+            font=title_font,
+            fill="white"
+        )
+
+        y += 85
+
+    logo_font = get_font(
+        65,
+        True
+    )
+
+    draw.text(
+        (60, 70),
+        PAGE_NAME,
+        font=logo_font,
+        fill=(255, 50, 50)
+    )
+
+    output = "frame.jpg"
+
+    img.save(output)
+
+    return output
+
+
+# =====================================
 # VIDEO
-# =========================================
+# =====================================
 
-def create_video(image_path, audio_path, output_path):
+def create_video(
+    image_path,
+    audio_path,
+    output_path
+):
 
-    audio = AudioFileClip(audio_path)
+    audio = AudioFileClip(
+        audio_path
+    )
 
     duration = audio.duration
 
@@ -442,11 +598,18 @@ def create_video(image_path, audio_path, output_path):
     video.close()
 
 
-# =========================================
+# =====================================
 # TELEGRAM
-# =========================================
+# =====================================
 
-def post_to_telegram(video_path, caption):
+def post_to_telegram(
+    video_path,
+    caption
+):
+
+    if not TELEGRAM_BOT_TOKEN:
+        print("Missing Telegram token")
+        return
 
     url = (
         f"https://api.telegram.org/bot"
@@ -475,9 +638,9 @@ def post_to_telegram(video_path, caption):
     print(r.text)
 
 
-# =========================================
+# =====================================
 # CAPTION
-# =========================================
+# =====================================
 
 def make_caption(news):
 
@@ -486,6 +649,7 @@ def make_caption(news):
     )
 
     hashtags = [
+
         "#ලෝකපුවත්",
         "#ශ්‍රීලංකාව",
         "#BreakingNews",
@@ -500,25 +664,35 @@ def make_caption(news):
     )
 
 
-# =========================================
+# =====================================
 # MAIN
-# =========================================
+# =====================================
 
 def run_once():
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    os.makedirs(ASSET_DIR, exist_ok=True)
+    os.makedirs(
+        OUTPUT_DIR,
+        exist_ok=True
+    )
+
+    os.makedirs(
+        ASSET_DIR,
+        exist_ok=True
+    )
 
     news = get_news()
 
     if not news:
 
         print("No news found")
+
         return
 
     print(news["title"])
 
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    stamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
 
     image_path = os.path.join(
         ASSET_DIR,
@@ -570,6 +744,7 @@ def run_once():
     )
 
     used = load_used()
+
     used.append(news["id"])
 
     save_used(used)
@@ -577,9 +752,9 @@ def run_once():
     print("DONE")
 
 
-# =========================================
+# =====================================
 # LOOP
-# =========================================
+# =====================================
 
 def main():
 
