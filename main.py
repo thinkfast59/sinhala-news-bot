@@ -6,8 +6,8 @@ from googletrans import Translator
 from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 from gtts import gTTS
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_BOT_TOKEN = os.getenv("8608459484:AAHvkzg6ZhYuClxlWHnG7syQa6e5n-3qoRk")
+TELEGRAM_CHAT_ID = os.getenv("8376417027")
 
 POSTED_FILE = "posted.json"
 IMAGE_FILE = "post.jpg"
