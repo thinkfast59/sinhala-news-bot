@@ -1,4 +1,6 @@
 requests
 feedparser
-pillow
-googletrans==4.0.0rc1
+Pillow
+googletrans==4.0.0-rc1
+moviepy
+gTTS
