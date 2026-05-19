@@ -2,5 +2,8 @@ requests
 feedparser
 Pillow
 googletrans==4.0.0-rc1
-moviepy
+moviepy==1.0.3
 gTTS
+imageio
+imageio-ffmpeg
+numpy
